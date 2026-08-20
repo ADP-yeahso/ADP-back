@@ -1,13 +1,8 @@
-from functools import lru_cache
+"""Backward-compatible Supabase client import.
 
-from supabase import Client, create_client
+New code should import from :mod:`app.db.supabase`.
+"""
 
-from app.config import get_settings
+from app.db.supabase import get_supabase_client
 
-
-@lru_cache
-def get_supabase_client() -> Client | None:
-    settings = get_settings()
-    if not settings.supabase_url or not settings.supabase_service_role_key:
-        return None
-    return create_client(settings.supabase_url, settings.supabase_service_role_key)
+__all__ = ["get_supabase_client"]
