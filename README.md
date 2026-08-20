@@ -2,6 +2,8 @@
 
 FastAPI backend + Supabase database.
 
+제품 목적과 핵심 기능은 [제품 요구사항 문서](docs/product-spec.md)를 참고하세요.
+
 ## Repository layout
 
 ```text
