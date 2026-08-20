@@ -20,6 +20,7 @@
 - `updated_at`은 PostgreSQL 트리거 함수로 자동 갱신한다.
 - 그룹 멤버는 동일 그룹에 중복 가입할 수 없다.
 - 그룹 멤버 탈퇴 시 `group_members`에서 해당 행을 삭제한다.
+- 회원 탈퇴 시 해당 사용자가 작성한 서비스 기록과 프로필을 삭제하며 복구할 수 없다.
 - 모든 테이블은 Supabase RLS를 적용한다.
 
 공통 트리거 함수 예시:
@@ -69,7 +70,7 @@ Supabase Auth의 `auth.users`와 1:1로 연결되는 공개 프로필 테이블�
 
 ### 1.3 `group_members` - 사용자의 그룹 정보
 
-그룹 초대 코드를 입력해 가입한 사용자와 그룹의 연결을 저장한다. 모든 멤버는 동일한 권한을 가진다.
+그룹 초대 링크 또는 초대 코드를 통해 가입한 사용자와 그룹의 연결을 저장한다. 초대 링크를 가진 사용자는 별도 승인 없이 참여할 수 있으며, 모든 멤버는 동일한 권한을 가진다.
 
 | 컬럼명 | 데이터 타입 | 제약 조건 | 설명 |
 | --- | --- | --- | --- |
@@ -87,7 +88,7 @@ UNIQUE (user_id, group_id)
 
 `patients_nickname`은 DB 기본값으로 `patients.patient_name`을 참조하지 않는다. 그룹 가입 또는 환자 연결 시 애플리케이션이 환자 이름을 기본값으로 복사하고, 사용자가 자신의 호칭으로 수정할 수 있다.
 
-그룹 탈퇴 시 해당 사용자의 `group_members` 행을 삭제한다. 역할, 가입 상태, 그룹장 관련 컬럼은 두지 않는다.
+그룹 탈퇴 시 해당 사용자의 `group_members` 행을 삭제한다. 역할, 가입 상태, 그룹장 관련 컬럼은 두지 않는다. 한 사용자는 여러 그룹에 참여할 수 있으며, 가족이 아닌 친구도 멤버가 될 수 있다.
 
 ## 2. 환자
 
@@ -130,6 +131,7 @@ UNIQUE (user_id, group_id)
 | `question_answer_text` | `text` | Nullable | 맞춤형 질문에 대한 사용자 답변 및 감정 표현 |
 | `final_emotion_id` | `integer` | Nullable, FK `emotions.id` | 최종 확정 감정, 꽃 생성용 |
 | `flower_id` | `integer` | Nullable, FK `flowers.id` | 최종 감정에 따라 연결된 꽃 |
+| `status` | `varchar(30)` | Not Null, Default `draft` | `draft` 또는 `completed` |
 | `record_date` | `timestamptz` | Not Null, Default `now()` | 일기 기록 일시 |
 | `created_at` | `timestamptz` | Not Null, Default `now()` | 생성 일시 |
 | `updated_at` | `timestamptz` | Not Null, Default `now()` | 수정 일시 |
@@ -196,9 +198,32 @@ ON diaries (user_id, record_date);
 UNIQUE (diary_id, emotion_tag_id)
 ```
 
-AI 추천 로직 자체는 저장하지 않는다. 런타임에서 `situation_text`와 `question_answer_text`를 분석하고, 사용자가 선택한 태그 목록을 기준으로 `diaries.final_emotion_id`를 확정한다.
+AI 추천 로직 자체는 저장하지 않는다. 런타임에서 `situation_text`와 `question_answer_text`를 분석하고, 사용자가 선택한 태그 목록을 기준으로 `diaries.final_emotion_id`를 확정한다. 작성 중인 일기는 `status=draft`로 임시 저장하고, 최종 완료 시 `status=completed`로 변경한다.
 
-### 3.5 `flowers` - 꽃 및 색상
+감정 선택 규칙:
+
+1. AI가 상위 감정 2개를 추천한다.
+2. 각 상위 감정의 하위 감정 5개씩, 총 10개를 토글로 표시한다.
+3. 사용자는 총 10개 중 3개를 선택한다.
+4. 2개 이상 선택된 상위 감정을 최종 감정으로 분류한다.
+5. 최종 감정은 `final_emotion_id`에 저장하고, 연결된 꽃을 생성한다.
+
+### 3.5 `emotion_training_samples` - 감정 AI 재학습 데이터
+
+사용자가 직접 선택해 확정한 감정과 당시 상황 서술을 AI 재학습용 데이터로 보존한다. 이 테이블은 서비스용 감정 기록과 분리해 학습 데이터의 수집·검토·재학습 상태를 관리하기 위한 테이블이다.
+
+| 컬럼명 | 데이터 타입 | 제약 조건 | 설명 |
+| --- | --- | --- | --- |
+| `id` | `integer` | PK, Auto Increment, Not Null | 학습 데이터 ID |
+| `diary_id` | `integer` | Not Null, FK `diaries.id` | 원본 일기 |
+| `user_id` | `uuid` | Not Null, FK `users.id` | 라벨을 선택한 사용자 |
+| `situation_text` | `text` | Not Null | 사용자가 작성한 상황 서술의 복사본 |
+| `final_emotion_id` | `integer` | Not Null, FK `emotions.id` | 사용자가 확정한 최종 감정 |
+| `created_at` | `timestamptz` | Not Null, Default `now()` | 수집 일시 |
+
+일기 완료 시 서버가 이 테이블에 학습 샘플을 저장한다. 재학습 작업은 운영 데이터와 분리된 별도 작업에서 승인된 샘플만 사용한다.
+
+### 3.6 `flowers` - 꽃 및 색상
 
 | 컬럼명 | 데이터 타입 | 제약 조건 | 설명 |
 | --- | --- | --- | --- |
@@ -269,7 +294,7 @@ UNIQUE (user_id, memory_record_id)
 
 ### 4.4 `memory_record_reactions` - 나무기록 반응
 
-원본 설계에서 유지한다. `reaction_type`의 종류는 아직 결정하지 않는다.
+사용자당 기록별 하나의 반응만 허용한다. 반응은 변경하거나 취소할 수 있으며, 현재 정책은 한 게시물당 사용자 한 명당 좋아요 하나다.
 
 권장 기본 컬럼:
 
@@ -278,7 +303,7 @@ UNIQUE (user_id, memory_record_id)
 | `id` | `integer` | PK, Auto Increment | 고유 식별자 |
 | `memory_record_id` | `integer` | Not Null, FK `memory_records.id` | 반응 대상 기록 |
 | `user_id` | `uuid` | Not Null, FK `users.id` | 반응한 사용자 |
-| `reaction_type` | `varchar(30)` | Not Null | 반응 종류, 최종 목록 미정 |
+| `reaction_type` | `varchar(30)` | Not Null, Default `like` | 현재 `like`만 사용 |
 | `created_at` | `timestamptz` | Not Null, Default `now()` | 반응 일시 |
 
 ### 4.5 `member_cheers` - 그룹원 개인 응원
@@ -291,9 +316,16 @@ UNIQUE (user_id, memory_record_id)
 | `group_id` | `integer` | Not Null, FK `groups.id` | 응원이 속한 그룹 |
 | `sender_user_id` | `uuid` | Not Null, FK `users.id` | 응원을 보낸 사용자 |
 | `receiver_user_id` | `uuid` | Not Null, FK `users.id` | 응원 받은 그룹원 |
+| `cheer_date` | `date` | Not Null, Default `current_date` | 하루 제한을 적용할 기준 날짜 |
 | `created_at` | `timestamptz` | Not Null, Default `now()` | 응원한 일시 |
 
-발신자와 수신자가 모두 해당 그룹의 멤버인지 API와 RLS에서 검증한다. 응원 횟수 제한과 문구 첨부 여부는 미정이다.
+발신자와 수신자가 모두 해당 그룹의 멤버인지 API와 RLS에서 검증한다. 발신자는 자기 자신을 포함해 여러 그룹원에게 응원을 보낼 수 있다. 동일한 수신자에게는 하루 한 번만 응원할 수 있다. 이모지 또는 응원 유형을 선택할 수 있다.
+
+```sql
+UNIQUE (sender_user_id, receiver_user_id, cheer_date)
+```
+
+그룹별 응원 기록인 만큼 애플리케이션에서 `group_id`와 두 사용자 모두의 그룹 멤버십도 함께 검증한다.
 
 ## 5. 감정 분석 통계
 
@@ -360,7 +392,7 @@ CREATE INDEX idx_daily_conditions_patient_date
 ON patient_daily_conditions (patient_id, record_date);
 ```
 
-하루에 보호자 한 명이 여러 건을 작성할 수 있는지는 아직 결정하지 않는다.
+여러 보호자가 같은 날 각각 한 건씩 작성할 수 있다. 보호자별 하루 한 건 제한은 두지 않는다.
 
 ### 6.3 `patient_behavior_logs` - 행동 및 증상 기록
 
@@ -495,15 +527,9 @@ public.users 1 --- N group_members N --- 1 groups
 
 다음 항목은 원본 문서와 동일하게 아직 확정하지 않는다.
 
-- `mood_status`의 CHECK 제약에 사용할 최종 값 목록
-- `anonymous_letters` 수신 대상 정책
+- `mood_status`와 행동 유형의 최종 표시 문구 및 하드코딩 값 목록
 - `media.file_type`을 ENUM으로 전환할지 여부
-- `patient_daily_conditions`의 하루 1인 1건 제한 여부
-- `member_cheers` 스팸 방지 정책: 하루 1회 또는 무제한, 문구 첨부 여부
-- `memory_record_reactions.reaction_type` 종류
 - 감정분석 트래픽 증가 시 `emotion_stats_daily` 집계 캐시 테이블 도입 여부
-- 감정 일기의 임시 저장 및 단계별 상태 관리 여부
-- AI 추천 감정과 사용자가 선택하는 최종 감정의 확정 방식
 
 ## 11. 원본 대비 반영된 변경사항 요약
 
