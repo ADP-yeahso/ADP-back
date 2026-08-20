@@ -60,3 +60,16 @@ docker compose up --build
 
 The container listens on port 8000. The deployment target is intentionally not
 fixed yet; the Docker image can later be used on EC2 or another container host.
+
+## app 하위 폴더 계층 구조
+```
+app/
+├── api/                 # 라우터 및 FastAPI 의존성
+│   └── v1/endpoints/    # 도메인별 API 엔드포인트
+├── core/                # 설정, 인증·인가, 공통 예외
+├── db/                  # Supabase 클라이언트
+├── schemas/             # Pydantic 요청·응답 모델
+├── services/            # 비즈니스 로직
+├── repositories/        # Supabase 데이터 접근
+└── integrations/        # 감정 분석 및 Storage 연동
+```
