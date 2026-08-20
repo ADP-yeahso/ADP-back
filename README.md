@@ -13,6 +13,7 @@ backend/
 	tests/               API tests
 	pyproject.toml       Python 3.11 dependencies and tool config
 docker-compose.yml     Local API container
+supabase/migrations/   Supabase database migrations
 ```
 
 ## Backend setup
@@ -74,3 +75,18 @@ app/
 ├── repositories/        # Supabase 데이터 접근
 └── integrations/        # 감정 분석 및 Storage 연동
 ```
+
+## Supabase migration
+
+초기 DB 스키마는 `supabase/migrations/20260820_initial_schema.sql`에 있습니다.
+Supabase CLI를 설치하고 프로젝트를 연결한 뒤 개발용 프로젝트에 먼저 적용하세요.
+
+```bash
+brew install supabase/tap/supabase
+supabase login
+supabase link --project-ref <PROJECT_REF>
+supabase db push
+```
+
+`supabase db push`는 연결된 프로젝트의 스키마를 변경하므로, 운영 프로젝트가 아닌
+개발용 프로젝트에서 먼저 RLS와 데이터 접근을 검증해야 합니다.
