@@ -306,6 +306,10 @@ UNIQUE (user_id, memory_record_id)
 | `reaction_type` | `varchar(30)` | Not Null, Default `like` | 현재 `like`만 사용 |
 | `created_at` | `timestamptz` | Not Null, Default `now()` | 반응 일시 |
 
+```sql
+UNIQUE (memory_record_id, user_id)
+```
+
 ### 4.5 `member_cheers` - 그룹원 개인 응원
 
 그룹 정보 화면에서 그룹원이 다른 그룹원에게 보내는 응원이다.
@@ -317,6 +321,8 @@ UNIQUE (user_id, memory_record_id)
 | `sender_user_id` | `uuid` | Not Null, FK `users.id` | 응원을 보낸 사용자 |
 | `receiver_user_id` | `uuid` | Not Null, FK `users.id` | 응원 받은 그룹원 |
 | `cheer_date` | `date` | Not Null, Default `current_date` | 하루 제한을 적용할 기준 날짜 |
+| `cheer_type` | `varchar(50)` | Not Null, Default `encouragement` | 응원 유형 |
+| `emoji` | `varchar(20)` | Nullable | 선택한 이모지 |
 | `created_at` | `timestamptz` | Not Null, Default `now()` | 응원한 일시 |
 
 발신자와 수신자가 모두 해당 그룹의 멤버인지 API와 RLS에서 검증한다. 발신자는 자기 자신을 포함해 여러 그룹원에게 응원을 보낼 수 있다. 동일한 수신자에게는 하루 한 번만 응원할 수 있다. 이모지 또는 응원 유형을 선택할 수 있다.
