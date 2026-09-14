@@ -39,6 +39,16 @@ class UserPublic(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
 
+class UserProfileUpsert(BaseModel):
+    name: str | None = None
+    phone_number: str | None = None
+
+
+class UserProfileResponse(UserPublic):
+    name: str | None = None
+    phone_number: str | None = None
+
+
 class SignupResponse(BaseModel):
     id: str
     email: EmailStr
