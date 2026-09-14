@@ -12,6 +12,7 @@ from app.schemas.diaries import (
     DiaryCreate,
     DiaryDetail,
     DiaryUpdate,
+    EmotionSuggestion,
     EmotionTagsUpdate,
 )
 from app.services import diaries as service
@@ -66,7 +67,7 @@ def save_answer(diary_id: int, payload: DiaryAnswerCreate, current_user: Authent
     return service.save_answer(user_id(current_user), diary_id, payload.question_answer_text)
 
 
-@router.get("/{diary_id}/emotion-tag-suggestions")
+@router.get("/{diary_id}/emotion-tag-suggestions", response_model=list[EmotionSuggestion])
 def emotion_tag_suggestions(diary_id: int, current_user: AuthenticatedUser = Depends(get_current_user)):
     return service.emotion_suggestions(user_id(current_user), diary_id)
 
