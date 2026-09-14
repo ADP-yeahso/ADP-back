@@ -1,9 +1,10 @@
 from fastapi import APIRouter
 
-from app.api.v1.endpoints import care_notes, diaries, groups, media, memories, patients, system, users
+from app.api.v1.endpoints import auth, care_notes, diaries, groups, media, memories, patients, system, users
 
 router = APIRouter()
 router.include_router(system.router)
+router.include_router(auth.router, prefix="/auth", tags=["auth"])
 router.include_router(users.router, prefix="/users", tags=["users"])
 router.include_router(groups.router, prefix="/groups", tags=["groups"])
 router.include_router(patients.router, prefix="/patients", tags=["patients"])

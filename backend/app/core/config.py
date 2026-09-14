@@ -10,6 +10,11 @@ class Settings(BaseSettings):
     cors_origins: list[str] = ["http://localhost:3000", "http://localhost:8080"]
     supabase_url: str | None = None
     supabase_service_role_key: str | None = None
+    llm_base_url: str | None = None
+    llm_api_key: str | None = None
+    llm_model: str = "custom-question-model"
+    emotion_model_base_url: str | None = None
+    emotion_model_api_key: str | None = None
 
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
 
