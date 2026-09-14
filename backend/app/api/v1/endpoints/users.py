@@ -13,10 +13,10 @@ def get_me(current_user: AuthenticatedUser = Depends(get_current_user)) -> UserP
 	if client is None:
 		raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="Supabase is not configured")
 
-	result = client.table("users").select("*").eq("id", str(current_user.id)).maybe_single().execute()
+	result = client.table("users").select("*").eq("id", str(current_user.id)).execute()
 	if not result.data:
 		raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User profile not found")
-	return UserProfileResponse.model_validate(result.data)
+	return UserProfileResponse.model_validate(result.data[0])
 
 
 @router.put("/me", tags=["users"])
