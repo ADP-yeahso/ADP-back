@@ -26,7 +26,7 @@ class MemoryRecordUpdate(BaseModel):
 class MemoryRecordResponse(MemoryRecordBase):
     id: int = Field(..., description="기억 기록 ID")
     patient_id: int = Field(..., description="환자 ID")
-    user_id: int = Field(..., description="작성자(유저) ID")
+    user_id: UUID = Field(..., description="작성자(유저) ID")
     created_at: datetime = Field(..., description="생성 일시")
     media: List[Any] = Field(default_factory=list, description="첨부 미디어 목록")
     bookmarked: bool = Field(default=False, description="북마크 여부")

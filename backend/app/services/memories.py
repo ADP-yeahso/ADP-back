@@ -23,7 +23,7 @@ def create_memory_service(
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN, detail="그룹원 아님: 해당 환자에 접근할 권한이 없습니다."
         )
-    return create_memory_record(client, patient_id, user_id, data.model_dump())
+    return create_memory_record(client, patient_id, user_id, data.model_dump(mode="json"))
 
 
 def get_memories_service(
@@ -65,10 +65,10 @@ def update_memory_service(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="기록 없음")
     
     # 작성자 본인인지 확인
-    if str(record["user_id"]) != str(user_id):
+    if str(record["user_id"]) != user_id:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="작성자 아님")
     
-    update_data = data.model_dump(exclude_unset=True)
+    update_data = data.model_dump(mode="json", exclude_unset=True)
     if not update_data:
         return record
         
@@ -87,7 +87,7 @@ def delete_memory_service(client: Client, record_id: int, user_id: str) -> None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="기록 없음")
     
     # 작성자 본인인지 확인
-    if str(record["user_id"]) != str(user_id):
+    if str(record["user_id"]) != user_id:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="작성자 아님")
         
     success = delete_memory_record(client, record_id)
