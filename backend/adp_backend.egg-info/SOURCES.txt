@@ -2,6 +2,7 @@ pyproject.toml
 adp_backend.egg-info/PKG-INFO
 adp_backend.egg-info/SOURCES.txt
 adp_backend.egg-info/dependency_links.txt
+adp_backend.egg-info/entry_points.txt
 adp_backend.egg-info/requires.txt
 adp_backend.egg-info/top_level.txt
 app/__init__.py
@@ -14,6 +15,7 @@ app/api/router.py
 app/api/v1/__init__.py
 app/api/v1/router.py
 app/api/v1/endpoints/__init__.py
+app/api/v1/endpoints/auth.py
 app/api/v1/endpoints/care_notes.py
 app/api/v1/endpoints/diaries.py
 app/api/v1/endpoints/groups.py
@@ -31,6 +33,7 @@ app/db/supabase.py
 app/integrations/__init__.py
 app/integrations/ai/__init__.py
 app/integrations/ai/emotion_analyzer.py
+app/integrations/ai/question_generator.py
 app/integrations/storage/__init__.py
 app/integrations/storage/supabase_storage.py
 app/repositories/__init__.py
@@ -59,4 +62,8 @@ app/services/media.py
 app/services/memories.py
 app/services/patients.py
 app/services/users.py
+tests/test_auth_login.py
+tests/test_diaries.py
+tests/test_groups.py
 tests/test_health.py
+tests/test_patients.py

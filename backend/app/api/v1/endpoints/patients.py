@@ -23,5 +23,5 @@ def update_patient(
     current_user: AuthenticatedUser = Depends(get_current_user),
 ):
     return service.update_patient(
-        user_id(current_user), patient_id, payload.model_dump(exclude_unset=True)
+        user_id(current_user), patient_id, payload.model_dump(exclude_unset=True, mode="json")
     )

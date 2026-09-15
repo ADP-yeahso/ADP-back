@@ -4,6 +4,17 @@ import pytest
 from fastapi import HTTPException
 
 from app.services import patients
+from app.schemas.patients import PatientCreate, PatientUpdate
+
+
+def test_patient_payloads_serialize_dates_for_supabase() -> None:
+    created = PatientCreate(
+        patient_name="김환자", patient_birth_date=date(1940, 1, 1), gender="female"
+    )
+    updated = PatientUpdate(diagnosis_date=date(2020, 1, 1))
+
+    assert created.model_dump(mode="json")["patient_birth_date"] == "1940-01-01"
+    assert updated.model_dump(exclude_unset=True, mode="json")["diagnosis_date"] == "2020-01-01"
 
 
 def test_create_patient_requires_group_membership(monkeypatch) -> None:

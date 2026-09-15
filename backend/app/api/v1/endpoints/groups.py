@@ -49,7 +49,9 @@ def create_patient(
     payload: PatientCreate,
     current_user: AuthenticatedUser = Depends(get_current_user),
 ):
-    return patient_service.create_patient(user_id(current_user), group_id, payload.model_dump())
+    # Supabase serializes its payload with ``json.dumps``.  Pydantic's default
+    # dump retains ``date`` instances, so use JSON mode for date fields.
+    return patient_service.create_patient(user_id(current_user), group_id, payload.model_dump(mode="json"))
 
 
 @router.get("/{group_id}", response_model=GroupDetail)
