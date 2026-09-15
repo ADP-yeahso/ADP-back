@@ -1,5 +1,6 @@
 from functools import lru_cache
 
+from pydantic import AliasChoices, Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -15,6 +16,14 @@ class Settings(BaseSettings):
     llm_model: str = "custom-question-model"
     emotion_model_base_url: str | None = None
     emotion_model_api_key: str | None = None
+
+    # Local execution defaults. ``PORT`` is also accepted for managed hosts
+    # such as Railway, which inject it at runtime.
+    server_host: str = "0.0.0.0"
+    server_port: int = Field(
+        default=8000,
+        validation_alias=AliasChoices("SERVER_PORT", "PORT"),
+    )
 
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
 
