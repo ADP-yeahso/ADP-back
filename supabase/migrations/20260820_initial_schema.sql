@@ -107,6 +107,7 @@ create table public.emotion_training_samples (
   diary_id integer not null references public.diaries(id) on delete cascade,
   user_id uuid not null references public.users(id) on delete cascade,
   situation_text text not null,
+  question_answer_text text not null,
   final_emotion_id integer not null references public.emotions(id),
   created_at timestamptz not null default now()
 );
@@ -281,6 +282,23 @@ insert into public.emotions (emotion, display_name) values
   ('tenderness', '애틋함/수용'),
   ('neutral', '중립')
 on conflict (emotion) do nothing;
+
+insert into public.emotion_tags (parent_emotion_id, tag_name, display_order)
+select e.id, t.tag_name, t.display_order
+from public.emotions e
+join (values
+  ('anger', '분노', 1), ('anger', '답답함', 2), ('anger', '억울함', 3), ('anger', '짜증', 4), ('anger', '무력감', 5),
+  ('anxiety', '불안', 1), ('anxiety', '초조함', 2), ('anxiety', '걱정', 3), ('anxiety', '두려움', 4), ('anxiety', '긴장', 5),
+  ('sadness', '슬픔', 1), ('sadness', '허무함', 2), ('sadness', '외로움', 3), ('sadness', '지침', 4), ('sadness', '소진', 5),
+  ('guilt', '죄책감', 1), ('guilt', '자책', 2), ('guilt', '미안함', 3), ('guilt', '후회', 4), ('guilt', '부담감', 5),
+  ('gratitude', '감사', 1), ('gratitude', '안도감', 2), ('gratitude', '고마움', 3), ('gratitude', '다행스러움', 4), ('gratitude', '든든함', 5),
+  ('tenderness', '애틋함', 1), ('tenderness', '사랑', 2), ('tenderness', '소중함', 3), ('tenderness', '이해', 4), ('tenderness', '수용', 5),
+  ('neutral', '평온함', 1), ('neutral', '담담함', 2), ('neutral', '일상', 3), ('neutral', '편안함', 4), ('neutral', '무덤덤함', 5)
+) as t(emotion, tag_name, display_order) on e.emotion = t.emotion
+where not exists (
+  select 1 from public.emotion_tags existing
+  where existing.parent_emotion_id = e.id and existing.display_order = t.display_order
+);
 
 -- RLS helper functions avoid recursive policies on group_members.
 create or replace function public.is_group_member(target_group_id integer)

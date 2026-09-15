@@ -11,7 +11,9 @@ from app.schemas.groups import (
     GroupSummary,
     GroupUpdate,
 )
+from app.schemas.patients import PatientCreate, PatientResponse
 from app.services import groups as service
+from app.services import patients as patient_service
 
 router = APIRouter()
 
@@ -35,6 +37,21 @@ def list_groups(current_user: AuthenticatedUser = Depends(get_current_user)):
 @router.post("/join", response_model=GroupSummary)
 def join_group(payload: GroupJoin, current_user: AuthenticatedUser = Depends(get_current_user)):
     return service.join_group(user_id(current_user), payload.invite_code)
+
+
+@router.post(
+    "/{group_id}/patients",
+    response_model=PatientResponse,
+    status_code=status.HTTP_201_CREATED,
+)
+def create_patient(
+    group_id: int,
+    payload: PatientCreate,
+    current_user: AuthenticatedUser = Depends(get_current_user),
+):
+    # Supabase serializes its payload with ``json.dumps``.  Pydantic's default
+    # dump retains ``date`` instances, so use JSON mode for date fields.
+    return patient_service.create_patient(user_id(current_user), group_id, payload.model_dump(mode="json"))
 
 
 @router.get("/{group_id}", response_model=GroupDetail)
