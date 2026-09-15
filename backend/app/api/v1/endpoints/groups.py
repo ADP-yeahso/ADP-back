@@ -26,7 +26,7 @@ def user_id(current_user: AuthenticatedUser) -> str:
 def create_group(
     payload: GroupCreate, current_user: AuthenticatedUser = Depends(get_current_user)
 ):
-    return service.create_group(user_id(current_user), payload.model_dump())
+    return service.create_group(user_id(current_user), payload.model_dump(mode="json"))
 
 
 @router.get("", response_model=list[GroupSummary])
@@ -63,7 +63,7 @@ def get_group(group_id: int, current_user: AuthenticatedUser = Depends(get_curre
 def update_group(
     group_id: int, payload: GroupUpdate, current_user: AuthenticatedUser = Depends(get_current_user)
 ):
-    data = payload.model_dump(exclude_unset=True)
+    data = payload.model_dump(mode="json", exclude_unset=True)
     return service.update_group(user_id(current_user), group_id, data)
 
 
@@ -78,7 +78,7 @@ def update_my_membership(
     payload: GroupMemberUpdate,
     current_user: AuthenticatedUser = Depends(get_current_user),
 ):
-    data = payload.model_dump(exclude_unset=True)
+    data = payload.model_dump(mode="json", exclude_unset=True)
     return service.update_my_membership(user_id(current_user), group_id, data)
 
 

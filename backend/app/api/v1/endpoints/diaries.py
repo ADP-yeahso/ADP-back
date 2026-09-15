@@ -48,7 +48,7 @@ def get_diary(diary_id: int, current_user: AuthenticatedUser = Depends(get_curre
 
 @router.patch("/{diary_id}", response_model=Diary)
 def update_diary(diary_id: int, payload: DiaryUpdate, current_user: AuthenticatedUser = Depends(get_current_user)):
-    return service.update_diary(user_id(current_user), diary_id, payload.model_dump(exclude_unset=True))
+    return service.update_diary(user_id(current_user), diary_id, payload.model_dump(mode="json", exclude_unset=True))
 
 
 @router.delete("/{diary_id}", status_code=status.HTTP_204_NO_CONTENT)

@@ -33,7 +33,7 @@ def upsert_me(
 	data = {
 		"id": str(current_user.id),
 		"email": current_user.email,
-		**profile.model_dump(),
+		**profile.model_dump(mode="json"),
 	}
 	result = client.table("users").upsert(data, on_conflict="id").execute()
 	if not result.data:
