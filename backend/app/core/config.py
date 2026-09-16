@@ -9,7 +9,7 @@ class Settings(BaseSettings):
     app_name: str = "ADP API"
     app_env: str = "development"
     api_v1_prefix: str = "/api/v1"
-    cors_origins: list[str] = ["http://localhost:3000", "http://localhost:8080"]
+    cors_origins: list[str] = ["http://localhost:3000", "http://localhost:8080", "http://localhost:5173"]
     supabase_url: str | None = None
     supabase_service_role_key: str | None = None
     llm_base_url: str | None = None
