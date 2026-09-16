@@ -3,6 +3,7 @@
 from typing import Any
 
 from fastapi import HTTPException, status
+from supabase import Client
 
 from app.db.supabase import get_supabase_client
 
@@ -18,6 +19,26 @@ def _one(result: Any, detail: str) -> dict:
     if not result.data:
         raise HTTPException(status.HTTP_404_NOT_FOUND, detail)
     return result.data[0] if isinstance(result.data, list) else result.data
+
+
+def check_patient_access(client: Client, patient_id: int, user_id: str) -> bool:
+    """Return whether the user belongs to the group that owns the patient."""
+    patient_result = (
+        client.table("patients").select("group_id").eq("id", patient_id).execute()
+    )
+    patient_rows = patient_result.data or []
+    if not patient_rows:
+        return False
+
+    group_id = patient_rows[0]["group_id"]
+    member_result = (
+        client.table("group_members")
+        .select("id")
+        .eq("group_id", group_id)
+        .eq("user_id", user_id)
+        .execute()
+    )
+    return bool(member_result.data)
 
 
 def get_patient(patient_id: int) -> dict:
