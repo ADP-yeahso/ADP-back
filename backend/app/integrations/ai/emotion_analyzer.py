@@ -1,7 +1,8 @@
-"""Emotion analyzer interface and deterministic local fallback."""
+"""In-process inference for the team's fine-tuned emotion classifier."""
 
 from dataclasses import dataclass
-import re
+from functools import lru_cache
+from pathlib import Path
 
 from app.core.config import get_settings
 
@@ -12,46 +13,54 @@ class EmotionAnalysis:
     secondary: str
 
 
-class EmotionAnalyzer:
-    _keywords: dict[str, tuple[str, ...]] = {
-        "anger": ("화", "답답", "짜증", "분노", "억울"),
-        "anxiety": ("불안", "걱정", "초조", "긴장", "두려"),
-        "sadness": ("슬프", "우울", "지쳤", "힘들", "소진"),
-        "guilt": ("미안", "죄책", "내 탓", "자책", "후회"),
-        "gratitude": ("감사", "다행", "안도", "고마"),
-        "tenderness": ("애틋", "사랑", "소중", "괜찮아", "받아들"),
-    }
+@lru_cache
+def _load_classifier():
+    """Load the local Hugging Face checkpoint once for this API process."""
+    settings = get_settings()
+    model_path = Path(settings.emotion_model_path)
+    if not model_path.is_dir():
+        raise RuntimeError(f"Emotion model directory does not exist: {model_path}")
 
+    required_files = ("config.json", "model.safetensors", "tokenizer.json")
+    missing = [name for name in required_files if not (model_path / name).is_file()]
+    if missing:
+        raise RuntimeError(f"Emotion model is missing required files: {', '.join(missing)}")
+
+    try:
+        from transformers import AutoModelForSequenceClassification, AutoTokenizer
+
+        tokenizer = AutoTokenizer.from_pretrained(model_path, local_files_only=True)
+        model = AutoModelForSequenceClassification.from_pretrained(model_path, local_files_only=True)
+        model.eval()
+    except (ImportError, OSError, ValueError) as exc:
+        raise RuntimeError("Emotion model could not be loaded") from exc
+    return tokenizer, model
+
+
+class EmotionAnalyzer:
     def analyze(self, text: str) -> EmotionAnalysis:
         settings = get_settings()
-        if settings.emotion_model_base_url:
-            return self._analyze_with_custom_model(text, settings.emotion_model_base_url, settings.emotion_model_api_key)
-        scores = {
-            emotion: sum(len(re.findall(re.escape(keyword), text)) for keyword in keywords)
-            for emotion, keywords in self._keywords.items()
-        }
-        ranked = sorted(scores, key=lambda emotion: (-scores[emotion], emotion))
-        if scores[ranked[0]] == 0:
-            return EmotionAnalysis("neutral", "gratitude")
-        secondary = next((emotion for emotion in ranked[1:] if scores[emotion] > 0), "neutral")
-        return EmotionAnalysis(ranked[0], secondary)
+        tokenizer, model = _load_classifier()
+        try:
+            import torch
 
-    def _analyze_with_custom_model(self, text: str, base_url: str, api_key: str | None) -> EmotionAnalysis:
-        import json
-        from urllib.request import Request, urlopen
+            encoded = tokenizer(text, return_tensors="pt", truncation=True, max_length=512)
+            with torch.inference_mode():
+                logits = model(**encoded).logits[0]
+            top_ids = torch.topk(logits, k=2).indices.tolist()
+        except Exception as exc:
+            raise RuntimeError("Emotion model failed during inference") from exc
 
-        headers = {"Content-Type": "application/json"}
-        if api_key:
-            headers["Authorization"] = f"Bearer {api_key}"
-        request = Request(
-            f"{base_url.rstrip('/')}/predict",
-            data=json.dumps({"text": text, "top_k": 2}).encode("utf-8"),
-            headers=headers,
-            method="POST",
-        )
-        with urlopen(request, timeout=15) as response:
-            result = json.loads(response.read().decode("utf-8"))
-        predictions = result["predictions"]
-        if len(predictions) < 2:
-            raise RuntimeError("Custom emotion model must return two predictions")
-        return EmotionAnalysis(predictions[0]["emotion"], predictions[1]["emotion"])
+        saved_labels = [
+            model.config.id2label.get(int(index), model.config.id2label.get(str(index)))
+            for index in top_ids
+        ]
+        if any(label is None for label in saved_labels):
+            raise RuntimeError("Emotion model is missing a label for a predicted class")
+        try:
+            primary, secondary = (settings.emotion_label_map[label] for label in saved_labels)
+        except KeyError as exc:
+            raise RuntimeError(
+                "EMOTION_LABEL_MAP must map every model label to an application emotion code"
+            ) from exc
+        return EmotionAnalysis(primary=primary, secondary=secondary)

@@ -12,11 +12,17 @@ class Settings(BaseSettings):
     cors_origins: list[str] = ["http://localhost:3000", "http://localhost:8080", "http://localhost:5173"]
     supabase_url: str | None = None
     supabase_service_role_key: str | None = None
-    llm_base_url: str | None = None
-    llm_api_key: str | None = None
-    llm_model: str = "custom-question-model"
-    emotion_model_base_url: str | None = None
-    emotion_model_api_key: str | None = None
+    # Directory containing the fine-tuned KoBART question-generation model.
+    # This can be a Railway Volume mount such as /models/question.
+    question_model_path: str = "app/model_artifacts/question"
+    question_max_new_tokens: int = 96
+    # Directory containing config.json, model.safetensors and tokenizer files.
+    # This can be a Railway Volume mount such as /models/emotion.
+    emotion_model_path: str = "app/model_artifacts/emotion"
+    # Maps the model's saved labels (for example LABEL_0) to the application's
+    # emotion codes. The saved checkpoint uses generic labels, so this is
+    # intentionally required at deployment time.
+    emotion_label_map: dict[str, str] = Field(default_factory=dict)
 
     # Local execution defaults. ``PORT`` is also accepted for managed hosts
     # such as Railway, which inject it at runtime.

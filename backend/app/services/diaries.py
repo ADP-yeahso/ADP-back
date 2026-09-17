@@ -31,7 +31,10 @@ SUB_EMOTION_NAMES = {
 
 
 def _analysis(text: str):
-    return EmotionAnalyzer().analyze(text)
+    try:
+        return EmotionAnalyzer().analyze(text)
+    except RuntimeError as exc:
+        raise HTTPException(status.HTTP_503_SERVICE_UNAVAILABLE, "Custom emotion classifier is unavailable") from exc
 
 
 def create_diary(user_id: str, group_id: int, situation_text: str, title: str | None, record_date):
@@ -48,7 +51,7 @@ def generate_question(user_id: str, diary_id: int) -> dict:
     try:
         question = QuestionGenerator().generate(diary["situation_text"])
     except RuntimeError as exc:
-        raise HTTPException(status.HTTP_503_SERVICE_UNAVAILABLE, "LLM question generator is unavailable") from exc
+        raise HTTPException(status.HTTP_503_SERVICE_UNAVAILABLE, "Custom question generator is unavailable") from exc
     repository.set_question(diary_id, user_id, question)
     return {"diary_id": diary_id, "ai_question_text": question}
 

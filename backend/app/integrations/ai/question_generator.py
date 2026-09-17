@@ -1,37 +1,56 @@
-"""LLM-backed personalized diary question generation."""
+"""In-process inference for the team's fine-tuned KoBART question generator."""
 
-import json
-from urllib.request import Request, urlopen
+from functools import lru_cache
+from pathlib import Path
 
 from app.core.config import get_settings
+
+
+@lru_cache
+def _load_model():
+    """Load the local KoBART checkpoint once for this API process."""
+    settings = get_settings()
+    model_path = Path(settings.question_model_path)
+    if not model_path.is_dir():
+        raise RuntimeError(f"Question model directory does not exist: {model_path}")
+
+    required_files = ("config.json", "generation_config.json", "model.safetensors", "tokenizer.json")
+    missing = [name for name in required_files if not (model_path / name).is_file()]
+    if missing:
+        raise RuntimeError(f"Question model is missing required files: {', '.join(missing)}")
+
+    try:
+        from transformers import AutoModelForSeq2SeqLM, AutoTokenizer
+
+        tokenizer = AutoTokenizer.from_pretrained(model_path, local_files_only=True)
+        model = AutoModelForSeq2SeqLM.from_pretrained(model_path, local_files_only=True)
+        model.eval()
+    except (ImportError, OSError, ValueError) as exc:
+        raise RuntimeError("Question-generation model could not be loaded") from exc
+    return tokenizer, model
 
 
 class QuestionGenerator:
     def generate(self, situation_text: str) -> str:
         settings = get_settings()
-        if not settings.llm_base_url:
-            raise RuntimeError("LLM_BASE_URL is not configured")
-        payload = {
-            "model": settings.llm_model,
-            "messages": [
-                {"role": "system", "content": "상황을 읽고 작성자가 자신의 감정을 이해하도록 돕는 한국어 질문 하나만 생성하세요."},
-                {"role": "user", "content": situation_text},
-            ],
-            "temperature": 0.7,
-            "max_tokens": 120,
-        }
-        headers = {"Content-Type": "application/json"}
-        if settings.llm_api_key:
-            headers["Authorization"] = f"Bearer {settings.llm_api_key}"
-        request = Request(
-            f"{settings.llm_base_url.rstrip('/')}/chat/completions",
-            data=json.dumps(payload).encode("utf-8"),
-            headers=headers,
-            method="POST",
-        )
-        with urlopen(request, timeout=15) as response:
-            result = json.loads(response.read().decode("utf-8"))
-        question = result["choices"][0]["message"]["content"].strip()
+        try:
+            import torch
+
+            tokenizer, model = _load_model()
+            encoded = tokenizer(situation_text, return_tensors="pt", truncation=True, max_length=512)
+            with torch.inference_mode():
+                generated = model.generate(
+                    **encoded,
+                    max_new_tokens=settings.question_max_new_tokens,
+                    num_beams=4,
+                    do_sample=False,
+                )
+            question = tokenizer.decode(generated[0], skip_special_tokens=True)
+        except Exception as exc:
+            raise RuntimeError("Custom question-generation model failed during inference") from exc
+        if not isinstance(question, str):
+            raise RuntimeError("Custom question model must return a string")
+        question = question.strip()
         if not question:
-            raise RuntimeError("LLM returned an empty question")
+            raise RuntimeError("Custom question model returned an empty question")
         return question
