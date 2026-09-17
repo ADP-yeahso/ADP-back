@@ -78,6 +78,11 @@ def test_finalize_saves_second_answer_as_training_data(monkeypatch) -> None:
     monkeypatch.setattr(diaries.repository, "get_flowers", lambda emotion_id: [{"id": 20}])
     monkeypatch.setattr(diaries.repository, "finalize", lambda *args: {"id": 1, "status": "completed"})
     monkeypatch.setattr(
+        diaries,
+        "_analysis",
+        lambda text: type("Analysis", (), {"primary": "gratitude", "secondary": "neutral"})(),
+    )
+    monkeypatch.setattr(
         diaries.repository,
         "save_training_sample",
         lambda sample, user_id, emotion_id: training_sample.update(sample),

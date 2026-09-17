@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from fastapi import APIRouter, Depends, Query, Response, status
+from fastapi import APIRouter, Depends, File, Form, Query, Response, UploadFile, status
 
 from app.core.security import AuthenticatedUser, get_current_user
 from app.repositories import diaries as repository
@@ -16,6 +16,8 @@ from app.schemas.diaries import (
     EmotionTagsUpdate,
 )
 from app.services import diaries as service
+from app.services import media as media_service
+from app.schemas.media import Media, MediaUploadResponse
 
 router = APIRouter()
 
@@ -65,6 +67,31 @@ def generate_question(diary_id: int, current_user: AuthenticatedUser = Depends(g
 @router.patch("/{diary_id}/answer", response_model=Diary)
 def save_answer(diary_id: int, payload: DiaryAnswerCreate, current_user: AuthenticatedUser = Depends(get_current_user)):
     return service.save_answer(user_id(current_user), diary_id, payload.question_answer_text)
+
+
+@router.post("/{diary_id}/media", response_model=MediaUploadResponse, status_code=status.HTTP_201_CREATED)
+async def upload_diary_media(
+    diary_id: int,
+    file: UploadFile = File(...),
+    duration: int | None = Form(default=None, ge=0),
+    sort_order: int = Form(default=0, ge=0, le=32767),
+    current_user: AuthenticatedUser = Depends(get_current_user),
+):
+    content = await file.read(media_service.MAX_FILE_SIZE + 1)
+    return media_service.upload_diary_media(
+        diary_id, user_id(current_user), file.filename, file.content_type, content, duration, sort_order
+    )
+
+
+@router.get("/{diary_id}/media", response_model=list[Media])
+def list_diary_media(diary_id: int, current_user: AuthenticatedUser = Depends(get_current_user)):
+    return media_service.list_diary_media(diary_id, user_id(current_user))
+
+
+@router.delete("/{diary_id}/media/{media_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_diary_media(diary_id: int, media_id: int, current_user: AuthenticatedUser = Depends(get_current_user)) -> Response:
+    media_service.delete_diary_media(diary_id, media_id, user_id(current_user))
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
 @router.get("/{diary_id}/emotion-tag-suggestions", response_model=list[EmotionSuggestion])
