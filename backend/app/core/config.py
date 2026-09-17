@@ -16,7 +16,11 @@ class Settings(BaseSettings):
     # Directory containing the fine-tuned KoBART question-generation model.
     # This can be a Railway Volume mount such as /models/question.
     question_model_path: str = "app/model_artifacts/question"
-    question_max_new_tokens: int = 96
+    # Railway's CPU instances run this model synchronously.  Keep the
+    # generated question short enough to return within the web client's
+    # request window; these questions are normally one sentence.
+    question_max_new_tokens: int = 32
+    question_num_beams: int = 1
     # Directory containing config.json, model.safetensors and tokenizer files.
     # This can be a Railway Volume mount such as /models/emotion.
     emotion_model_path: str = "app/model_artifacts/emotion"

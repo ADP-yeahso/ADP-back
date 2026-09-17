@@ -42,7 +42,7 @@ class QuestionGenerator:
                 generated = model.generate(
                     **encoded,
                     max_new_tokens=settings.question_max_new_tokens,
-                    num_beams=4,
+                    num_beams=settings.question_num_beams,
                     do_sample=False,
                 )
             question = tokenizer.decode(generated[0], skip_special_tokens=True)
