@@ -12,6 +12,7 @@ class Settings(BaseSettings):
     cors_origins: list[str] = ["http://localhost:3000", "http://localhost:8080", "http://localhost:5173"]
     supabase_url: str | None = None
     supabase_service_role_key: str | None = None
+    supabase_storage_bucket: str = "diary-media"
     # Directory containing the fine-tuned KoBART question-generation model.
     # This can be a Railway Volume mount such as /models/question.
     question_model_path: str = "app/model_artifacts/question"
