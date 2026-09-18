@@ -287,13 +287,13 @@ insert into public.emotion_tags (parent_emotion_id, tag_name, display_order)
 select e.id, t.tag_name, t.display_order
 from public.emotions e
 join (values
-  ('anger', '분노', 1), ('anger', '답답함', 2), ('anger', '억울함', 3), ('anger', '짜증', 4), ('anger', '무력감', 5),
-  ('anxiety', '불안', 1), ('anxiety', '초조함', 2), ('anxiety', '걱정', 3), ('anxiety', '두려움', 4), ('anxiety', '긴장', 5),
-  ('sadness', '슬픔', 1), ('sadness', '허무함', 2), ('sadness', '외로움', 3), ('sadness', '지침', 4), ('sadness', '소진', 5),
-  ('guilt', '죄책감', 1), ('guilt', '자책', 2), ('guilt', '미안함', 3), ('guilt', '후회', 4), ('guilt', '부담감', 5),
-  ('gratitude', '감사', 1), ('gratitude', '안도감', 2), ('gratitude', '고마움', 3), ('gratitude', '다행스러움', 4), ('gratitude', '든든함', 5),
-  ('tenderness', '애틋함', 1), ('tenderness', '사랑', 2), ('tenderness', '소중함', 3), ('tenderness', '이해', 4), ('tenderness', '수용', 5),
-  ('neutral', '평온함', 1), ('neutral', '담담함', 2), ('neutral', '일상', 3), ('neutral', '편안함', 4), ('neutral', '무덤덤함', 5)
+  ('anger', '억울함', 1), ('anger', '짜증', 2), ('anger', '무력감', 3), ('anger', '원망스러운', 4), ('anger', '분함', 5),
+  ('anxiety', '막막함', 1), ('anxiety', '예민함', 2), ('anxiety', '압박감', 3), ('anxiety', '당혹감', 4), ('anxiety', '초조함', 5),
+  ('sadness', '상실감', 1), ('sadness', '탈진', 2), ('sadness', '서러움', 3), ('sadness', '허무함', 4), ('sadness', '외로움', 5),
+  ('guilt', '자책감', 1), ('guilt', '미안함', 2), ('guilt', '부족함', 3), ('guilt', '후회스러움', 4), ('guilt', '부끄러움', 5),
+  ('gratitude', '다행스러움', 1), ('gratitude', '따뜻함', 2), ('gratitude', '편안함', 3), ('gratitude', '고마움', 4), ('gratitude', '후련함', 5),
+  ('tenderness', '그리움', 1), ('tenderness', '뭉클함', 2), ('tenderness', '사랑스러움', 3), ('tenderness', '소중함', 4), ('tenderness', '애틋함', 5),
+  ('neutral', '담담함', 1), ('neutral', '무탈함', 2), ('neutral', '여유로움', 3), ('neutral', '무심함', 4), ('neutral', '평온함', 5)
 ) as t(emotion, tag_name, display_order) on e.emotion = t.emotion
 where not exists (
   select 1 from public.emotion_tags existing

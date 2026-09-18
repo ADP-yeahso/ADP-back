@@ -107,6 +107,9 @@
 | 날짜 상세 | `GET /groups/{group_id}/calendar/{date}` | `date: YYYY-MM-DD` | `{ date, records: [MemoryRecord] }` |
 | 월별 정원 | `GET /gardens` | `year`, `month`, `group_id?` | `{ year, month, flowers, leaf_count }` |
 | 업로드 URL 발급 | `POST /media/presign` | `file_name`, `file_type=image|audio|video` | `{ upload_url, file_url, object_path, token }` |
+| 다이어리 미디어 업로드 | `POST /diaries/{diary_id}/media` | `multipart/form-data`: `file`, `duration?`, `sort_order?` | `201 Media` |
+| 다이어리 미디어 목록 | `GET /diaries/{diary_id}/media` | 없음 | `Media[]` |
+| 다이어리 미디어 삭제 | `DELETE /diaries/{diary_id}/media/{media_id}` | 없음 | `204` |
 | 미디어 등록 | `POST /groups/{group_id}/gallery` | `file_url`, `file_type`, `duration?`, `sort_order=0`, `diary_id` 또는 `memory_record_id` | `201 Media` |
 | 그룹 갤러리 | `GET /groups/{group_id}/gallery` | `page=1`, `size=20` | 최신순 `Media[]` |
 | 미디어 삭제 | `DELETE /groups/{group_id}/gallery/{media_id}` | 없음 | `204` |
