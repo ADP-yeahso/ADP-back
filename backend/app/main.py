@@ -11,9 +11,18 @@ def create_app() -> FastAPI:
     settings = get_settings()
     app = FastAPI(title=settings.app_name, version="0.1.0")
 
+    # Flutter Web picks an available development port at launch, so listing a
+    # handful of fixed localhost ports makes its browser preflight fail before
+    # the login handler is reached. Keep this convenience limited to local
+    # development; deployed environments must explicitly list their origins.
+    local_origin_regex = None
+    if settings.app_env.lower() == "development":
+        local_origin_regex = r"^https?://(localhost|127\.0\.0\.1)(:\d+)?$"
+
     app.add_middleware(
         CORSMiddleware,
         allow_origins=settings.cors_origins,
+        allow_origin_regex=local_origin_regex,
         allow_credentials=True,
         allow_methods=["*"],
         allow_headers=["*"],

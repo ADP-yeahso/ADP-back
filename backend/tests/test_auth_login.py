@@ -5,6 +5,32 @@ from app.main import app
 client = TestClient(app)
 
 
+def test_login_preflight_allows_flutter_web_development_port() -> None:
+    response = client.options(
+        "/api/v1/auth/login",
+        headers={
+            "Origin": "http://localhost:53142",
+            "Access-Control-Request-Method": "POST",
+            "Access-Control-Request-Headers": "content-type",
+        },
+    )
+
+    assert response.status_code == 200
+    assert response.headers["access-control-allow-origin"] == "http://localhost:53142"
+
+
+def test_login_preflight_rejects_untrusted_origin() -> None:
+    response = client.options(
+        "/api/v1/auth/login",
+        headers={
+            "Origin": "https://untrusted.example",
+            "Access-Control-Request-Method": "POST",
+        },
+    )
+
+    assert response.status_code == 400
+
+
 def test_login_route_success(monkeypatch) -> None:
     class FakeSession:
         access_token = "access-token-123"
