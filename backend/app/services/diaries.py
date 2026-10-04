@@ -46,93 +46,100 @@ def create_diary(user_id: str, group_id: int, situation_text: str, title: str | 
 
 def generate_question(user_id: str, diary_id: int) -> dict:
     diary = repository.get_diary(diary_id, user_id)
+    _require_draft(diary)
     if not diary.get("situation_text"):
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "Situation text is required")
     try:
         question = QuestionGenerator().generate(diary["situation_text"])
     except RuntimeError as exc:
         raise HTTPException(status.HTTP_503_SERVICE_UNAVAILABLE, "Custom question generator is unavailable") from exc
-    repository.set_question(diary_id, user_id, question)
+    repository.transition(diary_id, user_id, "question", {
+        "question": question, "situation_text": diary["situation_text"],
+    })
     return {"diary_id": diary_id, "ai_question_text": question}
 
 
 def save_answer(user_id: str, diary_id: int, answer: str) -> dict:
     diary = repository.get_diary(diary_id, user_id)
+    _require_draft(diary)
     if not diary.get("ai_question_text"):
         raise HTTPException(status.HTTP_409_CONFLICT, "AI question has not been generated")
-    return repository.set_answer(diary_id, user_id, answer)
+    return repository.transition(diary_id, user_id, "answer", {"answer": answer})
+
+
+def _require_draft(diary: dict) -> None:
+    if diary.get("status") == "completed":
+        raise HTTPException(status.HTTP_409_CONFLICT, "Finalized diary cannot be edited")
 
 
 def emotion_suggestions(user_id: str, diary_id: int) -> list[dict]:
     diary = repository.get_diary(diary_id, user_id)
+    if diary.get("ai_emotion_predictions"):
+        return diary["ai_emotion_predictions"]
+    _require_draft(diary)
     if not diary.get("question_answer_text"):
         raise HTTPException(status.HTTP_409_CONFLICT, "Answer has not been saved")
     analysis = _analysis(diary["question_answer_text"])
+    if analysis.primary == analysis.secondary:
+        raise HTTPException(503, "Emotion classifier must return two distinct emotions")
     suggestions = []
     for rank, code in enumerate((analysis.primary, analysis.secondary)):
         emotion = repository.get_emotion(code)
         tags = repository.get_emotion_tags([emotion["id"]])
-        if len(tags) != len(SUB_EMOTION_NAMES[code]):
+        if len(tags) != 5 or len({tag["id"] for tag in tags}) != 5:
             raise HTTPException(status.HTTP_503_SERVICE_UNAVAILABLE, "Each emotion must have exactly five active tags")
         suggestions.append({
             "emotion_id": emotion["id"], "emotion": code,
             "display_name": emotion["display_name"],
-            "confidence": 1.0 if rank == 0 else 0.5,
+            "rank": rank + 1,
+            "confidence": analysis.primary_confidence if rank == 0 else analysis.secondary_confidence,
             "tags": tags,
         })
-    return suggestions
+    saved = repository.transition(diary_id, user_id, "predictions", {
+        "answer": diary["question_answer_text"], "predictions": suggestions,
+    })
+    return saved["ai_emotion_predictions"]
 
 
 def save_tags(user_id: str, diary_id: int, tag_ids: list[int]) -> dict:
     diary = repository.get_diary(diary_id, user_id)
+    _require_draft(diary)
     if not diary.get("question_answer_text"):
         raise HTTPException(status.HTTP_409_CONFLICT, "Answer has not been saved")
     if len(tag_ids) != 3 or len(set(tag_ids)) != 3:
         raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, "Exactly three unique emotion tags are required")
-    suggestions = emotion_suggestions(user_id, diary_id)
+    suggestions = diary.get("ai_emotion_predictions")
+    if not suggestions:
+        raise HTTPException(409, "Request emotion suggestions before selecting tags")
     allowed_ids = {tag["id"] for suggestion in suggestions for tag in suggestion["tags"]}
     if not set(tag_ids).issubset(allowed_ids):
         raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, "Tags must come from the two suggested emotions")
-    repository.replace_tags(diary_id, tag_ids)
-    return repository.get_diary(diary_id, user_id)
+    return repository.transition(diary_id, user_id, "tags", {"tag_ids": tag_ids})
 
 
 def finalize_diary(user_id: str, diary_id: int) -> dict:
     diary = repository.get_diary(diary_id, user_id)
     if diary.get("status") == "completed":
-        raise HTTPException(status.HTTP_409_CONFLICT, "Diary is already finalized")
+        return diary | repository.get_detail_parts(diary)
     if not diary.get("question_answer_text"):
         raise HTTPException(status.HTTP_409_CONFLICT, "Answer has not been saved")
-    tags = repository.get_selected_tags(diary_id)
-    if len(tags) != 3:
-        raise HTTPException(status.HTTP_409_CONFLICT, "Exactly three emotion tags must be selected")
-    counts: dict[int, int] = {}
-    for tag in tags:
-        parent_id = tag["parent_emotion_id"]
-        counts[parent_id] = counts.get(parent_id, 0) + 1
-    final_emotion_id = max(counts, key=counts.get)
-    primary_emotion = repository.get_emotion(_analysis(diary["question_answer_text"]).primary)
-    flowers = repository.get_flowers(primary_emotion["id"])
+    predictions = diary.get("ai_emotion_predictions")
+    if not predictions:
+        raise HTTPException(409, "Request emotion suggestions before finalizing")
+    flowers = repository.get_flowers(predictions[0]["emotion_id"])
     if not flowers:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Flower not found")
-    result = repository.finalize(diary_id, user_id, final_emotion_id, random.choice(flowers)["id"])
-    repository.save_training_sample(
-        result | {
-            "situation_text": diary["situation_text"],
-            "question_answer_text": diary["question_answer_text"],
-            "final_emotion_id": final_emotion_id,
-        },
-        user_id,
-        final_emotion_id,
-    )
-    return result
+    result = repository.transition(diary_id, user_id, "finalize", {
+        "flower_id": random.choice(flowers)["id"],
+    })
+    return result | repository.get_detail_parts(result)
 
 
 def update_diary(user_id: str, diary_id: int, data: dict) -> dict:
     diary = repository.get_diary(diary_id, user_id)
     if diary["status"] == "completed":
         raise HTTPException(status.HTTP_409_CONFLICT, "Finalized diary cannot be edited")
-    return repository.update_diary(diary_id, user_id, {key: value for key, value in data.items() if value is not None})
+    return repository.transition(diary_id, user_id, "update", data)
 
 
 def analysis(user_id: str, period: str, group_id: int | None) -> dict:

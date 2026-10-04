@@ -4,6 +4,7 @@ from datetime import date, datetime
 from typing import Any
 
 from fastapi import HTTPException, status
+from postgrest.exceptions import APIError
 
 from app.db.supabase import get_supabase_client
 
@@ -62,20 +63,6 @@ def get_emotion_tags(emotion_ids: list[int]) -> list[dict]:
     return result.data or []
 
 
-def set_question(diary_id: int, user_id: str, question: str) -> dict:
-    return update_diary(diary_id, user_id, {"ai_question_text": question})
-
-
-def set_answer(diary_id: int, user_id: str, answer: str) -> dict:
-    return update_diary(diary_id, user_id, {"question_answer_text": answer})
-
-
-def replace_tags(diary_id: int, tag_ids: list[int]) -> None:
-    client = _client()
-    client.table("diary_selected_emotion_tags").delete().eq("diary_id", diary_id).execute()
-    client.table("diary_selected_emotion_tags").insert([{"diary_id": diary_id, "emotion_tag_id": tag_id} for tag_id in tag_ids]).execute()
-
-
 def get_selected_tags(diary_id: int) -> list[dict]:
     result = _client().table("diary_selected_emotion_tags").select("emotion_tags(*)").eq("diary_id", diary_id).execute()
     return [row.get("emotion_tags", {}) for row in (result.data or [])]
@@ -86,11 +73,28 @@ def get_detail_parts(diary: dict) -> dict:
     detail = {"selected_emotion_tags": get_selected_tags(diary["id"]), "media": []}
     if diary.get("final_emotion_id"):
         detail["emotion"] = client.table("emotions").select("*").eq("id", diary["final_emotion_id"]).maybe_single().execute().data
+    if diary.get("correct_emotion_id"):
+        detail["correct_emotion"] = get_emotion_by_id(diary["correct_emotion_id"])
     if diary.get("flower_id"):
         detail["flower"] = client.table("flowers").select("*").eq("id", diary["flower_id"]).maybe_single().execute().data
     media = client.table("media").select("*").eq("diary_id", diary["id"]).order("sort_order").execute()
     detail["media"] = media.data or []
     return detail
+
+
+def transition(diary_id: int, user_id: str, action: str, payload: dict) -> dict:
+    """Serialize diary transitions and training-sample writes in one DB transaction."""
+    try:
+        result = _client().rpc("apply_diary_emotion_transition", {
+            "p_diary_id": diary_id, "p_user_id": user_id,
+            "p_action": action, "p_payload": payload,
+        }).execute()
+    except APIError as exc:
+        codes = {"PT404": 404, "PT409": 409, "PT422": 422}
+        if exc.code in codes:
+            raise HTTPException(codes[exc.code], exc.message) from exc
+        raise
+    return _one(result)
 
 
 def list_analysis(user_id: str, from_date: date, to_date: date, group_id: int | None) -> list[dict]:
@@ -103,20 +107,6 @@ def list_analysis(user_id: str, from_date: date, to_date: date, group_id: int | 
     return result.data or []
 
 
-def finalize(diary_id: int, user_id: str, emotion_id: int, flower_id: int) -> dict:
-    return update_diary(diary_id, user_id, {"final_emotion_id": emotion_id, "flower_id": flower_id, "status": "completed"})
-
-
 def get_flowers(emotion_id: int) -> list[dict]:
     result = _client().table("flowers").select("*").eq("emotion_id", emotion_id).execute()
     return result.data or []
-
-
-def save_training_sample(diary: dict, user_id: str, emotion_id: int) -> None:
-    _client().table("emotion_training_samples").insert({
-        "diary_id": diary["id"],
-        "user_id": user_id,
-        "situation_text": diary["situation_text"],
-        "question_answer_text": diary["question_answer_text"],
-        "final_emotion_id": emotion_id,
-    }).execute()

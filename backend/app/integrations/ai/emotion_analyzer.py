@@ -11,6 +11,8 @@ from app.core.config import get_settings
 class EmotionAnalysis:
     primary: str
     secondary: str
+    primary_confidence: float | None = None
+    secondary_confidence: float | None = None
 
 
 @lru_cache
@@ -63,4 +65,9 @@ class EmotionAnalyzer:
             raise RuntimeError(
                 "EMOTION_LABEL_MAP must map every model label to an application emotion code"
             ) from exc
-        return EmotionAnalysis(primary=primary, secondary=secondary)
+        probabilities = torch.softmax(logits, dim=-1)
+        return EmotionAnalysis(
+            primary=primary, secondary=secondary,
+            primary_confidence=float(probabilities[top_ids[0]]),
+            secondary_confidence=float(probabilities[top_ids[1]]),
+        )

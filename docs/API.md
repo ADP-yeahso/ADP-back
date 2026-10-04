@@ -1,5 +1,7 @@
 # 마음정원 API 상세 명세 v1.0
 
+> 감정 추천·선택·확정 응답은 [감정 판정 v2](emotion-ground-truth.md)를 우선 적용합니다.
+
 > 원본: `API.pdf`  
 > Base URL: `/api/v1`  
 > 인증: 회원가입·로그인을 제외한 요청에는 `Authorization: Bearer <access_token>`이 필요하다.

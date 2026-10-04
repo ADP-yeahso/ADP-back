@@ -40,6 +40,10 @@ class Diary(BaseModel):
     ai_question_text: str | None = None
     question_answer_text: str | None = None
     final_emotion_id: int | None = None
+    correct_emotion_id: int | None = None
+    ai_emotion_predictions: list[dict] = Field(default_factory=list)
+    emotion_logic_version: int = 1
+    finalized_at: datetime | None = None
     flower_id: int | None = None
     status: str
     record_date: datetime
@@ -59,7 +63,8 @@ class EmotionSuggestion(BaseModel):
     emotion_id: int
     emotion: str
     display_name: str
-    confidence: float
+    rank: int = Field(ge=1, le=2)
+    confidence: float | None = None
     tags: list[EmotionTagSuggestion]
 
 
@@ -73,6 +78,7 @@ class FlowerResponse(BaseModel):
 class DiaryDetail(Diary):
     selected_emotion_tags: list[EmotionTagSuggestion] = Field(default_factory=list)
     emotion: dict | None = None
+    correct_emotion: dict | None = None
     flower: dict | None = None
     media: list[dict] = Field(default_factory=list)
 
