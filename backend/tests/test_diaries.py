@@ -79,6 +79,33 @@ def test_finalize_uses_saved_ai_primary_and_returns_detail(monkeypatch) -> None:
     assert result["emotion"]["id"] == 10
 
 
+def test_finalize_persists_selected_tags_before_finalizing(monkeypatch) -> None:
+    diary = {
+        "id": 1,
+        "status": "draft",
+        "question_answer_text": "답변",
+        "ai_emotion_predictions": [{"emotion_id": 10}],
+    }
+    calls = []
+    monkeypatch.setattr(diaries.repository, "get_diary", lambda diary_id, user_id: diary)
+    monkeypatch.setattr(
+        diaries,
+        "save_tags",
+        lambda user_id, diary_id, tag_ids: calls.append((user_id, diary_id, tag_ids)) or diary,
+    )
+    monkeypatch.setattr(diaries.repository, "get_flowers", lambda emotion_id: [{"id": 20}])
+    monkeypatch.setattr(
+        diaries.repository,
+        "transition",
+        lambda diary_id, user_id, action, payload: {"id": 1, "status": "completed"},
+    )
+    monkeypatch.setattr(diaries.repository, "get_detail_parts", lambda diary: {})
+
+    diaries.finalize_diary("user-1", 1, [101, 102, 103])
+
+    assert calls == [("user-1", 1, [101, 102, 103])]
+
+
 def test_recommendations_persist_two_ranked_groups_of_five(monkeypatch):
     monkeypatch.setattr(diaries.repository, "get_diary", lambda *a: {"question_answer_text": "답변"})
     monkeypatch.setattr(diaries, "_analysis", lambda text: EmotionAnalysis("guilt", "sadness", .7, .2))

@@ -57,7 +57,7 @@
 | 답변 저장 | `PATCH /diaries/{diary_id}/answer` | `question_answer_text` | `Diary(status=answered)` | 403, 404, 409, 422 |
 | 감정 태그 추천 | `GET /diaries/{diary_id}/emotion-tag-suggestions` | 없음 | 상위 3개 감정·태그 | 409, 503 |
 | 감정 태그 저장 | `PUT /diaries/{diary_id}/emotion-tags` | `emotion_tag_ids: integer[]` | `Diary(status=tagged)` | 404, 409, 422 |
-| 최종 확정 | `POST /diaries/{diary_id}/finalize` | 없음 | `DiaryDetail(status=finalized)` | 404, 409 |
+| 최종 확정 | `POST /diaries/{diary_id}/finalize` | `emotion_tag_ids?` (선택한 3개 태그 ID) | `DiaryDetail(status=finalized)` | 404, 409, 422 |
 | 감정 통계 | `GET /diaries/analysis` | `period=week|month|six_months|year`, `group_id?` | 기간별 감정 집계 | 403, 422 |
 
 `Diary`는 `id`, `user_id`, `group_id`, `title`, `situation_text`, `ai_question_text`, `question_answer_text`, `final_emotion_id`, `flower_id`, `status`, `record_date`, 생성·수정 시각을 포함한다.

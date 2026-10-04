@@ -14,6 +14,7 @@ from app.schemas.diaries import (
     DiaryUpdate,
     EmotionSuggestion,
     EmotionTagsUpdate,
+    FinalizeDiaryRequest,
 )
 from app.services import diaries as service
 from app.services import media as media_service
@@ -105,5 +106,13 @@ def save_emotion_tags(diary_id: int, payload: EmotionTagsUpdate, current_user: A
 
 
 @router.post("/{diary_id}/finalize", response_model=DiaryDetail)
-def finalize_diary(diary_id: int, current_user: AuthenticatedUser = Depends(get_current_user)):
-    return service.finalize_diary(user_id(current_user), diary_id)
+def finalize_diary(
+    diary_id: int,
+    payload: FinalizeDiaryRequest | None = None,
+    current_user: AuthenticatedUser = Depends(get_current_user),
+):
+    return service.finalize_diary(
+        user_id(current_user),
+        diary_id,
+        payload.emotion_tag_ids if payload else None,
+    )

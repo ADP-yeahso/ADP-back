@@ -26,6 +26,12 @@ class EmotionTagsUpdate(BaseModel):
     emotion_tag_ids: list[int] = Field(min_length=3, max_length=3)
 
 
+class FinalizeDiaryRequest(BaseModel):
+    # Accepting the selected tags here lets the web flow save the selection
+    # atomically from the user's point of view before finalization.
+    emotion_tag_ids: list[int] | None = Field(default=None, min_length=3, max_length=3)
+
+
 class AiQuestionResponse(BaseModel):
     diary_id: int
     ai_question_text: str

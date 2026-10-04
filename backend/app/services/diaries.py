@@ -117,10 +117,13 @@ def save_tags(user_id: str, diary_id: int, tag_ids: list[int]) -> dict:
     return repository.transition(diary_id, user_id, "tags", {"tag_ids": tag_ids})
 
 
-def finalize_diary(user_id: str, diary_id: int) -> dict:
+def finalize_diary(user_id: str, diary_id: int, emotion_tag_ids: list[int] | None = None) -> dict:
     diary = repository.get_diary(diary_id, user_id)
     if diary.get("status") == "completed":
         return diary | repository.get_detail_parts(diary)
+    if emotion_tag_ids is not None:
+        save_tags(user_id, diary_id, emotion_tag_ids)
+        diary = repository.get_diary(diary_id, user_id)
     if not diary.get("question_answer_text"):
         raise HTTPException(status.HTTP_409_CONFLICT, "Answer has not been saved")
     predictions = diary.get("ai_emotion_predictions")
