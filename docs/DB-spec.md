@@ -1,5 +1,7 @@
 # ADP 데이터베이스 명세
 
+> 감정 필드 및 확정 규칙은 [감정 판정 v2](emotion-ground-truth.md)를 우선 적용합니다.
+
 > 원본 DB 명세서를 기준으로, 확정된 변경사항만 반영한 Supabase PostgreSQL 데이터베이스 명세
 
 ## 0. 적용 원칙

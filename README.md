@@ -40,8 +40,18 @@ service role key is server-only and must never be committed.
 Run the API:
 
 ```bash
+cd backend
+adp-api
+```
+
+For development with automatic reload, run this from the repository root:
+
+```bash
 uvicorn app.main:app --app-dir backend --reload
 ```
+
+`SERVER_HOST` and `SERVER_PORT` configure the normal start command. On managed
+hosts, `PORT` is accepted automatically when `SERVER_PORT` is not set.
 
 The API is available at http://localhost:8000. Health check: `GET /health`.
 Interactive API docs: http://localhost:8000/docs.

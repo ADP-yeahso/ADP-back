@@ -1,6 +1,7 @@
 # Python
 __pycache__/
 *.py[cod]
+*.egg-info/
 .pytest_cache/
 .ruff_cache/
 .coverage
@@ -10,9 +11,12 @@ htmlcov/
 .venv/
 .env
 
-# IDE
-.vscode/settings.json
+# IDE & Type Checker (local config with absolute paths)
+.vscode/
 .idea/
+pyrightconfig.json
+pyrefly.toml
 
 # OS
 .DS_Store
+
