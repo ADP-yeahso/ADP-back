@@ -20,3 +20,6 @@ pyrefly.toml
 # OS
 .DS_Store
 
+# Large local AI model artifacts; deploy these via a model volume/object store.
+/질문생성모델v7/
+

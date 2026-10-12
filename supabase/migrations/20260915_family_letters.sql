@@ -25,3 +25,11 @@ create index idx_family_letters_sender_user_id on public.family_letters(sender_u
 create index idx_family_letters_receiver_user_id on public.family_letters(receiver_user_id);
 create index idx_letter_reads_letter_id on public.letter_reads(letter_id);
 create index idx_letter_reads_user_id on public.letter_reads(user_id);
+
+-- The API uses Supabase's service_role client. Tables created manually or by
+-- migrations may not have the required grants for that role, so grant the
+-- CRUD and identity-sequence privileges explicitly.
+grant select, insert, update, delete on public.family_letters to service_role;
+grant select, insert, update, delete on public.letter_reads to service_role;
+grant usage, select on sequence public.family_letters_id_seq to service_role;
+grant usage, select on sequence public.letter_reads_id_seq to service_role;
