@@ -30,9 +30,9 @@ SUB_EMOTION_NAMES = {
 }
 
 
-def _analysis(text: str):
+def _analysis(text: str, situation_text: str | None = None):
     try:
-        return EmotionAnalyzer().analyze(text)
+        return EmotionAnalyzer().analyze(text, situation_text=situation_text)
     except RuntimeError as exc:
         raise HTTPException(status.HTTP_503_SERVICE_UNAVAILABLE, "Custom emotion classifier is unavailable") from exc
 
@@ -79,7 +79,7 @@ def emotion_suggestions(user_id: str, diary_id: int) -> list[dict]:
     _require_draft(diary)
     if not diary.get("question_answer_text"):
         raise HTTPException(status.HTTP_409_CONFLICT, "Answer has not been saved")
-    analysis = _analysis(diary["question_answer_text"])
+    analysis = _analysis(diary["question_answer_text"], situation_text=diary.get("situation_text"))
     if analysis.primary == analysis.secondary:
         raise HTTPException(503, "Emotion classifier must return two distinct emotions")
     suggestions = []
@@ -94,6 +94,8 @@ def emotion_suggestions(user_id: str, diary_id: int) -> list[dict]:
             "rank": rank + 1,
             "confidence": analysis.primary_confidence if rank == 0 else analysis.secondary_confidence,
             "tags": tags,
+            # Which model produced this prediction (e.g. "v2"); used to compare versions.
+            "model_version": analysis.model_version,
         })
     saved = repository.transition(diary_id, user_id, "predictions", {
         "answer": diary["question_answer_text"], "predictions": suggestions,
