@@ -1,15 +1,26 @@
+from contextlib import asynccontextmanager
+
 import uvicorn
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.api.router import api_router
 from app.core.config import get_settings
+from app.integrations.ai.emotion_analyzer import warm_up_in_background
+
+
+@asynccontextmanager
+async def lifespan(_app: FastAPI):
+    # Start downloading/loading the emotion model as soon as the server starts so the
+    # first diary request does not wait for it. No-op unless EMOTION_MODEL_HF_REPO is set.
+    warm_up_in_background()
+    yield
 
 
 def create_app() -> FastAPI:
     """Build the HTTP application without starting a server process."""
     settings = get_settings()
-    app = FastAPI(title=settings.app_name, version="0.1.0")
+    app = FastAPI(title=settings.app_name, version="0.1.0", lifespan=lifespan)
 
     # Flutter Web picks an available development port at launch, so listing a
     # handful of fixed localhost ports makes its browser preflight fail before

@@ -22,4 +22,5 @@ pyrefly.toml
 
 # Large local AI model artifacts; deploy these via a model volume/object store.
 /질문생성모델v7/
+backend/app/model_artifacts/emotion-hf/
 

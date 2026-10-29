@@ -28,6 +28,21 @@ class Settings(BaseSettings):
     # emotion codes. The saved checkpoint uses generic labels, so this is
     # intentionally required at deployment time.
     emotion_label_map: dict[str, str] = Field(default_factory=dict)
+    # --- MLOps (optional) ---------------------------------------------------
+    # When set, the emotion model is downloaded from this Hugging Face repository
+    # (for example "user/moaon-emotion-kcelectra") instead of EMOTION_MODEL_PATH.
+    # EMOTION_MODEL_PATH stays as the fallback when the download fails.
+    emotion_model_hf_repo: str | None = None
+    # Read-only Hugging Face token (needed for private repositories).
+    emotion_model_hf_token: str | None = None
+    # Pin a revision such as "v2". Empty = the 'deployed' row of model_registry.
+    emotion_model_revision: str | None = None
+    # Where downloaded revisions are stored. On Railway, use the volume, e.g.
+    # /models/emotion-hf, so restarts do not download the model again.
+    emotion_model_cache_dir: str = "app/model_artifacts/emotion-hf"
+    # Shared secret the training job sends in X-Reload-Token to POST /reload-model.
+    # The endpoint is disabled while this is empty.
+    emotion_model_reload_token: str | None = None
 
     # Local execution defaults. ``PORT`` is also accepted for managed hosts
     # such as Railway, which inject it at runtime.

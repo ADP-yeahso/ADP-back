@@ -72,7 +72,7 @@ def test_finalize_uses_saved_ai_primary_and_returns_detail(monkeypatch) -> None:
     monkeypatch.setattr(diaries.repository, "get_flowers", flowers)
     monkeypatch.setattr(diaries.repository, "transition", transition)
     monkeypatch.setattr(diaries.repository, "get_detail_parts", lambda d: {"emotion": {"id": 10}})
-    monkeypatch.setattr(diaries, "_analysis", lambda _: pytest.fail("Must not rerun AI"))
+    monkeypatch.setattr(diaries, "_analysis", lambda *a, **k: pytest.fail("Must not rerun AI"))
     result = diaries.finalize_diary("user-1", 1)
     assert result["final_emotion_id"] == 10
     assert result["correct_emotion_id"] == 11
@@ -108,7 +108,10 @@ def test_finalize_persists_selected_tags_before_finalizing(monkeypatch) -> None:
 
 def test_recommendations_persist_two_ranked_groups_of_five(monkeypatch):
     monkeypatch.setattr(diaries.repository, "get_diary", lambda *a: {"question_answer_text": "답변"})
-    monkeypatch.setattr(diaries, "_analysis", lambda text: EmotionAnalysis("guilt", "sadness", .7, .2))
+    monkeypatch.setattr(
+        diaries, "_analysis",
+        lambda text, situation_text=None: EmotionAnalysis("guilt", "sadness", .7, .2, "v1"),
+    )
     monkeypatch.setattr(diaries.repository, "get_emotion", lambda c: {
         "id": 1 if c == "guilt" else 2, "emotion": c, "display_name": c,
     })
@@ -123,12 +126,13 @@ def test_recommendations_persist_two_ranked_groups_of_five(monkeypatch):
     assert [s["rank"] for s in result] == [1, 2]
     assert [s["confidence"] for s in result] == [.7, .2]
     assert [len(s["tags"]) for s in result] == [5, 5]
+    assert [s["model_version"] for s in result] == ["v1", "v1"]
 
 
 def test_cached_predictions_do_not_run_ai(monkeypatch):
     predictions = [{"emotion_id": 1}, {"emotion_id": 2}]
     monkeypatch.setattr(diaries.repository, "get_diary", lambda *a: {"ai_emotion_predictions": predictions})
-    monkeypatch.setattr(diaries, "_analysis", lambda _: pytest.fail("Must reuse predictions"))
+    monkeypatch.setattr(diaries, "_analysis", lambda *a, **k: pytest.fail("Must reuse predictions"))
     assert diaries.emotion_suggestions("user", 1) == predictions
 
 
