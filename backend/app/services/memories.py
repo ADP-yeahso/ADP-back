@@ -14,6 +14,7 @@ from app.repositories.memories import (
 )
 from app.repositories.patients import check_patient_access
 from app.schemas.memories import MemoryRecordCreate, MemoryRecordUpdate
+from app.services import media as media_service
 
 
 def create_memory_service(
@@ -40,7 +41,12 @@ def get_memories_service(
             status_code=status.HTTP_403_FORBIDDEN, detail="그룹원 아님: 해당 환자에 접근할 권한이 없습니다."
         )
     offset = (page - 1) * size
-    return get_memory_records_by_patient(client, patient_id, size, offset, from_date, to_date)
+    records = get_memory_records_by_patient(client, patient_id, size, offset, from_date, to_date)
+    media_by_record = media_service.list_memory_records_media([record["id"] for record in records])
+    for record in records:
+        record["media"] = media_by_record.get(record["id"], [])
+        record["bookmarked"] = False
+    return records
 
 
 def get_memory_service(client: Client, record_id: int, user_id: str) -> dict:
@@ -51,8 +57,7 @@ def get_memory_service(client: Client, record_id: int, user_id: str) -> dict:
     if not check_patient_access(client, record["patient_id"], user_id):
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="그룹원 아님")
     
-    # 갤러리 미디어나 북마크는 여기에서 추가로 쿼리하여 채울 수 있음
-    record["media"] = []
+    record["media"] = media_service.list_memory_record_media(record_id, user_id)
     record["bookmarked"] = False
     return record
 
@@ -76,7 +81,7 @@ def update_memory_service(
     if not updated_record:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="업데이트 실패")
         
-    updated_record["media"] = []
+    updated_record["media"] = media_service.list_memory_record_media(record_id, user_id)
     updated_record["bookmarked"] = False
     return updated_record
 

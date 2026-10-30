@@ -1,4 +1,4 @@
--- Run after initial schema + 20261004 migration on a disposable database.
+-- Run after all migrations on a disposable database (including emotion ID 0).
 begin;
 insert into auth.users values ('00000000-0000-0000-0000-000000000001');
 insert into public.users(id,email,name,phone_number) values
@@ -7,7 +7,7 @@ insert into public.groups(id,invite_code,group_name) values(1,'test','test');
 insert into public.diaries(id,user_id,group_id,situation_text,ai_question_text,question_answer_text)
 values (1,'00000000-0000-0000-0000-000000000001',1,'situation','question','answer');
 insert into public.flowers(id,emotion_id,flower_name,sentence)
-select 1,id,'flower','sentence' from public.emotions where emotion='guilt';
+select 1,id,'flower','sentence' from public.emotions where emotion='neutral';
 
 do $$
 declare
@@ -20,7 +20,7 @@ declare
   b integer[];
   choice integer[];
 begin
-  select id into first_id from public.emotions where emotion='guilt';
+  select id into first_id from public.emotions where emotion='neutral';
   select id into second_id from public.emotions where emotion='sadness';
   select array_agg(id order by id) into a from public.emotion_tags where parent_emotion_id=first_id;
   select array_agg(id order by id) into b from public.emotion_tags where parent_emotion_id=second_id;

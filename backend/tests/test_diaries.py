@@ -60,23 +60,76 @@ def test_finalize_uses_saved_ai_primary_and_returns_detail(monkeypatch) -> None:
         "status": "draft",
         "situation_text": "오늘 힘든 일이 있었다",
         "question_answer_text": "그래도 조금 안도했다",
-        "ai_emotion_predictions": [{"emotion_id": 10}, {"emotion_id": 11}],
+        "ai_emotion_predictions": [{"emotion_id": 0}, {"emotion_id": 1}],
     }
     monkeypatch.setattr(diaries.repository, "get_diary", lambda diary_id, user_id: diary)
     def flowers(emotion_id):
-        assert emotion_id == 10
+        assert emotion_id == 0
         return [{"id": 20}]
     def transition(diary_id, user_id, action, payload):
         assert (diary_id, user_id, action, payload) == (1, "user-1", "finalize", {"flower_id": 20})
-        return {"id": 1, "status": "completed", "final_emotion_id": 10, "correct_emotion_id": 11}
+        return {"id": 1, "status": "completed", "final_emotion_id": 0, "correct_emotion_id": 1}
     monkeypatch.setattr(diaries.repository, "get_flowers", flowers)
     monkeypatch.setattr(diaries.repository, "transition", transition)
-    monkeypatch.setattr(diaries.repository, "get_detail_parts", lambda d: {"emotion": {"id": 10}})
+    monkeypatch.setattr(diaries.repository, "get_detail_parts", lambda d: {"emotion": {"id": 0}})
     monkeypatch.setattr(diaries, "_analysis", lambda _: pytest.fail("Must not rerun AI"))
     result = diaries.finalize_diary("user-1", 1)
-    assert result["final_emotion_id"] == 10
-    assert result["correct_emotion_id"] == 11
-    assert result["emotion"]["id"] == 10
+    assert result["final_emotion_id"] == 0
+    assert result["correct_emotion_id"] == 1
+    assert result["emotion"]["id"] == 0
+
+
+@pytest.mark.parametrize("emotion_id", [0, None])
+def test_detail_resolves_zero_emotion_ids_and_skips_null(monkeypatch, emotion_id):
+    from types import SimpleNamespace
+
+    class Query:
+        def __init__(self, table):
+            self.table = table
+
+        def select(self, *args):
+            return self
+
+        def eq(self, column, value):
+            if self.table == "emotions":
+                assert (column, value) == ("id", 0)
+            return self
+
+        def maybe_single(self):
+            return self
+
+        def order(self, *args):
+            return self
+
+        def execute(self):
+            if self.table == "emotions":
+                assert emotion_id == 0, "NULL must not trigger an emotion lookup"
+                return SimpleNamespace(data={"id": 0, "emotion": "neutral"})
+            return SimpleNamespace(data=[])
+
+    monkeypatch.setattr(diaries.repository, "_client", lambda: SimpleNamespace(table=Query))
+    result = diaries.repository.get_detail_parts({
+        "id": 1, "final_emotion_id": emotion_id, "correct_emotion_id": emotion_id,
+    })
+    if emotion_id == 0:
+        assert result["emotion"] == result["correct_emotion"] == {"id": 0, "emotion": "neutral"}
+    else:
+        assert "emotion" not in result and "correct_emotion" not in result
+
+
+def test_analysis_counts_zero_emotion_id(monkeypatch):
+    monkeypatch.setattr(diaries.repository, "list_analysis", lambda *args: [
+        {"final_emotion_id": 0}, {"final_emotion_id": 0}, {"final_emotion_id": None},
+    ])
+    monkeypatch.setattr(diaries.repository, "get_emotion_by_id", lambda value: {
+        "id": value, "emotion": "neutral", "display_name": "중립",
+    })
+    result = diaries.analysis("user-1", "week", None)
+    assert result["total"] == 2
+    assert result["emotions"] == [{
+        "emotion_id": 0, "emotion": "neutral", "display_name": "중립",
+        "count": 2, "ratio": 1.0,
+    }]
 
 
 def test_finalize_persists_selected_tags_before_finalizing(monkeypatch) -> None:

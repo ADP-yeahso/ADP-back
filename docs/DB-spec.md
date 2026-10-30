@@ -154,7 +154,7 @@ ON diaries (user_id, record_date);
 
 | 컬럼명 | 데이터 타입 | 제약 조건 | 설명 |
 | --- | --- | --- | --- |
-| `id` | `integer` | PK, Auto Increment, Not Null | 감정 ID |
+| `id` | `integer` | PK, Not Null | 고정 감정 라벨 0–6. 매핑은 [감정 판정 v2](emotion-ground-truth.md) 참고 |
 | `emotion` | `varchar(50)` | Unique, Not Null | 모델 및 서버에서 사용하는 감정 코드 |
 | `display_name` | `varchar(50)` | Not Null | 표시용 감정명 |
 

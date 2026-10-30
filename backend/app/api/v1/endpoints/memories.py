@@ -2,7 +2,7 @@
 
 from typing import List, Optional
 
-from fastapi import APIRouter, Depends, Query, status
+from fastapi import APIRouter, Depends, File, Form, Query, Response, UploadFile, status
 from supabase import Client
 
 from app.core.security import AuthenticatedUser, get_current_user
@@ -12,6 +12,8 @@ from app.schemas.memories import (
     MemoryRecordResponse,
     MemoryRecordUpdate,
 )
+from app.schemas.media import Media, MediaUploadResponse
+from app.services import media as media_service
 from app.services.memories import (
     create_memory_service,
     delete_memory_service,
@@ -95,3 +97,49 @@ def delete_memory_record(
     client: Client = Depends(get_supabase_client),
 ):
     delete_memory_service(client, record_id, str(current_user.id))
+
+
+@router.post(
+    "/memory-records/{record_id}/media",
+    response_model=MediaUploadResponse,
+    status_code=status.HTTP_201_CREATED,
+    summary="기억 기록 미디어 첨부",
+)
+async def upload_memory_record_media(
+    record_id: int,
+    file: UploadFile = File(...),
+    duration: int | None = Form(default=None, ge=0),
+    sort_order: int = Form(default=0, ge=0, le=32767),
+    current_user: AuthenticatedUser = Depends(get_current_user),
+):
+    content = await file.read(media_service.MAX_FILE_SIZE + 1)
+    return media_service.upload_memory_record_media(
+        record_id, str(current_user.id), file.filename, file.content_type,
+        content, duration, sort_order,
+    )
+
+
+@router.get(
+    "/memory-records/{record_id}/media",
+    response_model=list[Media],
+    summary="기억 기록 미디어 목록",
+)
+def list_memory_record_media(
+    record_id: int,
+    current_user: AuthenticatedUser = Depends(get_current_user),
+):
+    return media_service.list_memory_record_media(record_id, str(current_user.id))
+
+
+@router.delete(
+    "/memory-records/{record_id}/media/{media_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="기억 기록 미디어 삭제",
+)
+def delete_memory_record_media(
+    record_id: int,
+    media_id: int,
+    current_user: AuthenticatedUser = Depends(get_current_user),
+) -> Response:
+    media_service.delete_memory_record_media(record_id, media_id, str(current_user.id))
+    return Response(status_code=status.HTTP_204_NO_CONTENT)

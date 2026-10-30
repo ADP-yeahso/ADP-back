@@ -4,6 +4,8 @@ from datetime import datetime
 
 from pydantic import BaseModel, Field, model_validator
 
+from app.schemas.patients import PatientResponse
+
 
 class GroupCreate(BaseModel):
     group_name: str = Field(min_length=1, max_length=255)
@@ -55,6 +57,7 @@ class GroupMember(BaseModel):
 
 class GroupDetail(GroupSummary):
     members: list[GroupMember]
+    patient: PatientResponse | None = None
 
 
 class CheerCreated(BaseModel):

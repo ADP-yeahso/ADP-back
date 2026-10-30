@@ -2,6 +2,36 @@
 
 이 문서는 기존 API/DB 문서의 최종 감정 결정 규칙을 대체합니다.
 
+## 감정 라벨 (2026-10-28 변경)
+
+DB와 API의 상위 감정 ID는 **기존 1–6을 유지하고, 중립만 7에서 0으로 변경**합니다.
+
+| ID | 코드 | 감정 |
+| --- | --- | --- |
+| 0 | `neutral` | 중립 |
+| 1 | `anger` | 분노/답답함 |
+| 2 | `anxiety` | 불안/초조 |
+| 3 | `sadness` | 슬픔/소진 |
+| 4 | `guilt` | 죄책감/자책 |
+| 5 | `gratitude` | 감사/안도 |
+| 6 | `tenderness` | 애틋함/수용 |
+
+ID `0`을 처리하는 백엔드를 먼저 배포한 뒤, 기존 DB에는
+`supabase/migrations/20261028_zero_based_emotion_ids.sql` 전체를 실행합니다.
+감정 테이블, 모든 외래 키, 일기·학습 데이터의 감정 ID와 추천 JSON의
+감정 ID·태그 부모 ID를 같은 트랜잭션에서 변환합니다. 태그 자체의 ID, 꽃 ID,
+추천 순위(`rank=1,2`)와 확률은 보존합니다. 재실행해도 이미 변환된 값은 유지합니다.
+앞서 잘못 제공된 전체 ID를 1씩 줄이는 SQL을 실행한 DB도 감정 코드에 맞춰
+위 번호로 복구합니다. 원래 DB와 잘못 변환된 DB 모두 같은 파일을 사용합니다.
+SQL은 임시 테이블을 사용하지 않는 단일 `DO $emotion_ids$ ... $emotion_ids$;`
+블록입니다. SQL Editor에 파일 전체를 붙여넣어 실행하세요.
+
+모델 체크포인트의 `LABEL_0` 등과 DB ID는 별개입니다. `EMOTION_LABEL_MAP`은
+학습 당시 클래스 순서에 맞춘 코드 매핑을 유지하며, DB 조회로 0–6 ID를 얻습니다.
+ID `0`은 정상 감정이므로 클라이언트도 감정 존재 여부를 `null`과 비교해야 합니다.
+
+## 감정 필드
+
 | 값 | 의미 |
 | --- | --- |
 | `diaries.final_emotion_id` | AI가 답변에서 분류한 1순위 감정. 추천 저장 시 설정 |
@@ -82,3 +112,11 @@ from public.emotion_training_samples order by id desc limit 20;
 Python 서비스 회귀 테스트와 별개로 임시 PostgreSQL 16에서 초기 스키마,
 새 마이그레이션, `backend/tests/emotion_db_regression.sql`을 순서대로 실행합니다.
 `emotion_db_bootstrap.sql`은 로컬 테스트 전용이며 운영 Supabase에서 실행하지 마세요.
+
+0–6 변환 검증은 임시 DB에 bootstrap과 20261012까지의 마이그레이션을 적용한 뒤
+다음 명령으로 실행합니다. 기존 데이터 보존, 20261028 마이그레이션 재실행,
+ID `0`을 사용하는 추천·선택·최종 확정 RPC를 검증합니다.
+
+```sh
+psql "$ADP_TEST_DATABASE_URL" -v ON_ERROR_STOP=1 -f backend/tests/emotion_zero_based_db_regression.sql
+```

@@ -71,6 +71,9 @@
 | 상세 | `GET /memory-records/{record_id}` | 없음 | `MemoryRecord` | 403, 404 |
 | 수정 | `PATCH /memory-records/{record_id}` | `title?`, `context?`, `record_date?` | `MemoryRecord` | 403, 404, 422 |
 | 삭제 | `DELETE /memory-records/{record_id}` | 없음 | `204` (soft delete) | 403, 404 |
+| 미디어 첨부 | `POST /memory-records/{record_id}/media` | multipart: `file`, `duration?`, `sort_order=0` | `201 Media` | 403, 404, 413, 422 |
+| 미디어 목록 | `GET /memory-records/{record_id}/media` | 없음 | `Media[]` | 403, 404 |
+| 미디어 삭제 | `DELETE /memory-records/{record_id}/media/{media_id}` | 없음 | `204` | 403, 404 |
 | 북마크 추가 | `PUT /memory-records/{record_id}/bookmark` | 없음, 멱등 | `{ bookmarked: true }` | 403, 404 |
 | 북마크 해제 | `DELETE /memory-records/{record_id}/bookmark` | 없음, 멱등 | `{ bookmarked: false }` | 403, 404 |
 | 내 북마크 | `GET /memory-records/bookmarks` | `page=1`, `size=20` | `MemoryRecord[]` | 401, 422 |
@@ -78,7 +81,10 @@
 | 댓글 목록 | `GET /memory-records/{record_id}/comments` | 없음 | `Comment[]` | 403, 404 |
 | 댓글 삭제 | `DELETE /comments/{comment_id}` | 없음 | `204` (soft delete) | 403, 404 |
 
-`MemoryRecord = { id, patient_id, user_id, title, context, record_date, created_at, media: [], bookmarked: false }`.
+`MemoryRecord = { id, patient_id, user_id, title, context, record_date, created_at, media: Media[], bookmarked: false }`.
+
+첨부는 기억 기록을 먼저 생성한 뒤 반환된 `id`로 업로드한다. `file`의 MIME 타입이
+`image/*`, `audio/*`, `video/*`인 파일만 허용하며 파일당 최대 크기는 50MB다.
 
 ## 5. 돌봄수첩
 

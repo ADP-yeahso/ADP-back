@@ -1,4 +1,4 @@
-"""Supabase Storage operations for diary attachments."""
+"""Supabase Storage operations for diary and memory-record attachments."""
 
 from pathlib import Path
 from uuid import uuid4
@@ -19,6 +19,11 @@ def _bucket():
 def make_diary_path(diary_id: int, filename: str) -> str:
     suffix = Path(filename).suffix.lower()
     return f"diaries/{diary_id}/{uuid4().hex}{suffix}"
+
+
+def make_memory_record_path(record_id: int, filename: str) -> str:
+    suffix = Path(filename).suffix.lower()
+    return f"memory-records/{record_id}/{uuid4().hex}{suffix}"
 
 
 def upload(storage_path: str, content: bytes, content_type: str) -> None:

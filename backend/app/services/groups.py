@@ -5,6 +5,7 @@ import secrets
 from fastapi import HTTPException, status
 
 from app.repositories import groups as repository
+from app.repositories import patients as patient_repository
 
 DEFAULT_PATIENT_NICKNAME = "환자"
 DEFAULT_PATIENT_RELATION = "보호자"
@@ -50,7 +51,11 @@ def join_group(user_id: str, invite_code: str) -> dict:
 def get_group_detail(user_id: str, group_id: int) -> dict:
     require_member(user_id, group_id)
     group = group_summary(repository.get_group(group_id))
-    return {**group, "members": repository.get_members(group_id)}
+    return {
+        **group,
+        "members": repository.get_members(group_id),
+        "patient": patient_repository.get_patient_by_group_id(group_id),
+    }
 
 
 def update_group(user_id: str, group_id: int, data: dict) -> dict:

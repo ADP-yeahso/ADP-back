@@ -71,9 +71,9 @@ def get_selected_tags(diary_id: int) -> list[dict]:
 def get_detail_parts(diary: dict) -> dict:
     client = _client()
     detail = {"selected_emotion_tags": get_selected_tags(diary["id"]), "media": []}
-    if diary.get("final_emotion_id"):
+    if diary.get("final_emotion_id") is not None:
         detail["emotion"] = client.table("emotions").select("*").eq("id", diary["final_emotion_id"]).maybe_single().execute().data
-    if diary.get("correct_emotion_id"):
+    if diary.get("correct_emotion_id") is not None:
         detail["correct_emotion"] = get_emotion_by_id(diary["correct_emotion_id"])
     if diary.get("flower_id"):
         detail["flower"] = client.table("flowers").select("*").eq("id", diary["flower_id"]).maybe_single().execute().data
